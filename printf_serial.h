@@ -4,21 +4,30 @@
 #include <Arduino.h>
 #include <stdio.h>
 
-// Variable FILE internal
-static FILE uart_output;
+static FILE uart_str;
 
-// Fungsi helper untuk mengirim karakter ke Serial
+// Helper Output (stdout) -> Mengirim karakter ke Serial
 static int _serial_putchar(char c, FILE *stream) {
   if (c == '\n') Serial.write('\r');
   Serial.write(c);
   return 0;
 }
 
-// Fungsi inisialisasi library
-static inline void init_printf(unsigned long baud_rate) {
+// Helper Input (stdin) -> Membaca karakter dari Serial
+static int _serial_getchar(FILE *stream) {
+  while (!Serial.available()); // Tunggu sampai ada karakter masuk di Serial
+  return Serial.read();
+}
+
+// Inisialisasi Serial + Stdout + Stdin
+static inline void init_serial_io(unsigned long baud_rate) {
   Serial.begin(baud_rate);
-  fdev_setup_stream(&uart_output, _serial_putchar, NULL, _FDEV_SETUP_WRITE);
-  stdout = &uart_output;
+  
+  // Setup stream untuk Baca & Tulis (_FDEV_SETUP_RW)
+  fdev_setup_stream(&uart_str, _serial_putchar, _serial_getchar, _FDEV_SETUP_RW);
+  
+  stdout = &uart_str; // Arahkan printf
+  stdin  = &uart_str; // Arahkan scanf
 }
 
 #endif
