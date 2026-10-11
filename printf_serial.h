@@ -60,15 +60,7 @@ static inline void _print_flt_helper(const char *format, double val) {
   printf(fmt_clean, buf);
 }
 
-// Clear Serial Input Buffer
-static inline void clear_serial_buffer() {
-  while (Serial.available()) {
-    Serial.read();
-  }
-}
-
 // MACRO SMART PRINTF:
-// Jika terdapat format %f / %.f maka otomatis dikonversi via helper, jika tidak pakai printf biasa
 #define printf(fmt, ...) \
   if (strstr(fmt, "%f") || strstr(fmt, "%.")) { \
     _print_flt_helper(fmt, ##__VA_ARGS__); \
