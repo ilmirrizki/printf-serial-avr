@@ -3,64 +3,78 @@
 
 #include <Arduino.h>
 #include <stdio.h>
+#include <stdarg.h>
 
 static FILE uart_str;
 
-// Helper Output (stdout) -> Mengirim karakter ke Serial
 static int _serial_putchar(char c, FILE *stream) {
   if (c == '\n') Serial.write('\r');
   Serial.write(c);
   return 0;
 }
 
-// Helper Input (stdin) -> Membaca karakter dari Serial
 static int _serial_getchar(FILE *stream) {
-  while (!Serial.available()); // Tunggu sampai ada karakter masuk di Serial
+  while (!Serial.available());
   return Serial.read();
 }
 
-// Inisialisasi Serial + Stdout + Stdin
 static inline void init_serial_io(unsigned long baud_rate) {
   Serial.begin(baud_rate);
-  
-  // Setup stream untuk Baca & Tulis (_FDEV_SETUP_RW)
   fdev_setup_stream(&uart_str, _serial_putchar, _serial_getchar, _FDEV_SETUP_RW);
-  
-  stdout = &uart_str; // Arahkan printf
-  stdin  = &uart_str; // Arahkan scanf
+  stdout = &uart_str;
+  stdin  = &uart_str;
 }
 
 // =========================================================================
-// HELPER PRINTER UNTUK PECAHAN (FLOAT & DOUBLE)
-// Membantu mengatasi keterbatasan avr-libc yang mematikan format %f di printf
+// HELPER PRINTF KHUSUS FLOAT (Mendukung %.1f, %.2f, %.4f, dll.)
 // =========================================================================
 
 /**
- * @brief Mencetak nilai float dengan presisi yang dapat ditentukan.
- * @param val Nilai float yang akan dicetak.
- * @param precision Jumlah angka di belakang koma (default: 2).
+ * @brief Fungsi wrapper printf khusus yang mendukung specifier %.2f / %f
  */
+static inline void printf_flt(const char *format, double val) {
+  char buf[20];
+  int precision = 2; // Default presisi 2 angka dibelakang koma
+
+  // Cek jika format meminta presisi spesifik seperti %.1f, %.3f, %.4f
+  const char *p = strchr(format, '.');
+  if (p && *(p + 1) >= '0' && *(p + 1) <= '9') {
+    precision = *(p + 1) - '0';
+  }
+
+  dtostrf(val, 0, precision, buf);
+
+  // Buat format string baru menggantikan %.Xf dengan %s
+  char fmt_clean[50];
+  int i = 0, j = 0;
+  while (format[i] != '\0' && j < 48) {
+    if (format[i] == '%' && (format[i+1] == 'f' || (format[i+1] == '.' && format[i+3] == 'f'))) {
+      fmt_clean[j++] = '%';
+      fmt_clean[j++] = 's';
+      if (format[i+1] == '.') i += 3;
+      else i += 1;
+    } else {
+      fmt_clean[j++] = format[i];
+    }
+    i++;
+  }
+  fmt_clean[j] = '\0';
+
+  printf(fmt_clean, buf);
+}
+
 static inline void print_float(float val, int precision = 2) {
   char buf[20];
   dtostrf(val, 0, precision, buf);
   printf("%s", buf);
 }
 
-/**
- * @brief Mencetak nilai double dengan presisi yang dapat ditentukan.
- * @param val Nilai double yang akan dicetak.
- * @param precision Jumlah angka di belakang koma (default: 4).
- */
 static inline void print_double(double val, int precision = 4) {
   char buf[25];
   dtostrf(val, 0, precision, buf);
   printf("%s", buf);
 }
 
-/**
- * @brief Membersihkan sisa karakter enter / newline pada buffer Serial input.
- * Berguna dipanggil sebelum atau sesudah scanf agar tidak terlewat otomatis.
- */
 static inline void clear_serial_buffer() {
   while (Serial.available()) {
     Serial.read();
