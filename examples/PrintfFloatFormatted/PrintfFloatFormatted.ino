@@ -5,14 +5,13 @@ float pi = 3.14159;
 double temp = 36.7542;
 
 void setup() {
-  init_serial_io(9600);
+  // Cukup Serial.begin biasa!
+  Serial.begin(9600);
 
-  // Tipe Data Integer
+  // Murni sintaks printf standar C untuk semua tipe data!
   printf("Nilai integer : %d\n", a);
-
-  // Bisa langsung pakai format %.2f / %.4f dalam 1 baris!
-  printf_flt("Nilai float   : %.2f\n", pi);
-  printf_flt("Nilai double  : %.4f\n", temp);
+  printf("Nilai float   : %.2f\n", pi);
+  printf("Nilai double  : %.1f\n", temp);
 }
 
 void loop() {
