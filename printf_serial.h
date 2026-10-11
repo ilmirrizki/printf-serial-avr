@@ -21,17 +21,12 @@ static int _serial_getchar(FILE *stream) {
   return Serial.read();
 }
 
-// Inisialisasi Stream Stdout & Stdin
-static inline void _setup_printf_stream() {
+// Inisialisasi Serial + Setup Stream Stdout & Stdin
+static inline void init_serial_io(unsigned long baud_rate = 9600) {
+  Serial.begin(baud_rate);
   fdev_setup_stream(&uart_str, _serial_putchar, _serial_getchar, _FDEV_SETUP_RW);
   stdout = &uart_str; // Arahkan printf
   stdin  = &uart_str; // Arahkan scanf
-}
-
-// Helper khusus penanganan Serial.begin + Setup Stream
-static inline void _init_serial_begin(unsigned long baud) {
-  Serial.begin(baud);
-  _setup_printf_stream();
 }
 
 // Helper internal untuk konversi float/double otomatis saat mencetak printf
@@ -84,8 +79,7 @@ static inline void clear_serial_buffer() {
   }
 }
 
-// TRIK MACRO BERSIH:
-#define begin(baud) _init_serial_begin(baud)
+// Menimpa kata 'printf' agar mendukung float/double secara transparan
 #define printf(...) _smart_printf_handler(__VA_ARGS__)
 
 #endif
