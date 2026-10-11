@@ -28,6 +28,12 @@ static inline void _setup_printf_stream() {
   stdin  = &uart_str; // Arahkan scanf
 }
 
+// Helper khusus penanganan Serial.begin + Setup Stream
+static inline void _init_serial_begin(unsigned long baud) {
+  Serial.begin(baud);
+  _setup_printf_stream();
+}
+
 // Helper internal untuk konversi float/double otomatis saat mencetak printf
 static inline void _smart_printf_handler(const char *format, ...) {
   if (strstr(format, "%f") || strstr(format, "%.")) {
@@ -80,15 +86,11 @@ static inline void clear_serial_buffer() {
   }
 }
 
-// TRIK MACRO:
-// 1. Menimpa Serial.begin() agar otomatis menginisialisasi stream printf/scanf
-#define Serial_begin(baud) do { Serial.begin(baud); _setup_printf_stream(); } while(0)
-#define Serial_begin_all(baud, ...) do { Serial.begin(baud, ##__VA_ARGS__); _setup_printf_stream(); } while(0)
+// TRIK MACRO BERSIH:
+// 1. Menimpa Serial.begin agar memanggil helper inisialisasi stream secara transparan
+#define begin(baud) _init_serial_begin(baud)
 
-// 2. Overload Serial.begin via macro
-#define begin(...) Serial_begin(__VA_ARGS__)
-
-// 3. Menimpa kata 'printf' agar mendukung float/double secara transparan
+// 2. Menimpa kata 'printf' agar mendukung float/double secara transparan
 #define printf(...) _smart_printf_handler(__VA_ARGS__)
 
 #endif
