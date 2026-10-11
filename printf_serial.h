@@ -4,7 +4,6 @@
 #include <Arduino.h>
 #include <stdio.h>
 #include <string.h>
-#include <stdarg.h>
 
 static FILE uart_str;
 
@@ -21,24 +20,28 @@ static int _serial_getchar(FILE *stream) {
   return Serial.read();
 }
 
-// Inisialisasi Serial + Setup Stream Stdout & Stdin
-static inline void init_serial_io(unsigned long baud_rate = 9600) {
+// Inisialisasi Serial + Stdout + Stdin
+static inline void init_serial_io(unsigned long baud_rate) {
   Serial.begin(baud_rate);
+  
+  // Setup stream untuk Baca & Tulis (_FDEV_SETUP_RW)
   fdev_setup_stream(&uart_str, _serial_putchar, _serial_getchar, _FDEV_SETUP_RW);
+  
   stdout = &uart_str; // Arahkan printf
   stdin  = &uart_str; // Arahkan scanf
 }
 
-// Helper internal untuk konversi float/double otomatis saat mencetak printf
+// Helper internal untuk konversi float/double saat mencetak
 static inline void _smart_printf_handler(const char *format, ...) {
-  va_list args;
-  va_start(args, format);
-
+  // Jika dalam format string ada %f atau %. (float/double)
   if (strstr(format, "%f") || strstr(format, "%.")) {
+    va_list args;
+    va_start(args, format);
     double val = va_arg(args, double);
+    va_end(args);
 
     char buf[20];
-    int precision = 2; // Default 2 angka di belakang koma
+    int precision = 2; // Default 2 angka belakang koma
 
     // Cari presisi kustom (misal %.1f, %.2f, %.4f)
     const char *p = strchr(format, '.');
@@ -64,12 +67,14 @@ static inline void _smart_printf_handler(const char *format, ...) {
     }
     fmt_clean[j] = '\0';
 
-    vfprintf(stdout, fmt_clean, (va_list)&buf);
+    printf(fmt_clean, buf);
   } else {
-    vfprintf(stdout, format, args);
+    // Jika integer, char, string biasa -> gunakan printf standar
+    va_list args;
+    va_start(args, format);
+    vprintf(format, args);
+    va_end(args);
   }
-  
-  va_end(args);
 }
 
 // Clear Serial Input Buffer
@@ -79,7 +84,7 @@ static inline void clear_serial_buffer() {
   }
 }
 
-// Menimpa kata 'printf' agar mendukung float/double secara transparan
+// Trik Macro: Menimpa kata 'printf' agar mendukung float secara otomatis
 #define printf(...) _smart_printf_handler(__VA_ARGS__)
 
 #endif
