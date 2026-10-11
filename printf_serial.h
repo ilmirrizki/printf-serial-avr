@@ -36,11 +36,11 @@ static inline void _init_serial_begin(unsigned long baud) {
 
 // Helper internal untuk konversi float/double otomatis saat mencetak printf
 static inline void _smart_printf_handler(const char *format, ...) {
+  va_list args;
+  va_start(args, format);
+
   if (strstr(format, "%f") || strstr(format, "%.")) {
-    va_list args;
-    va_start(args, format);
     double val = va_arg(args, double);
-    va_end(args);
 
     char buf[20];
     int precision = 2; // Default 2 angka di belakang koma
@@ -69,14 +69,12 @@ static inline void _smart_printf_handler(const char *format, ...) {
     }
     fmt_clean[j] = '\0';
 
-    printf(fmt_clean, buf);
+    vfprintf(stdout, fmt_clean, (va_list)&buf);
   } else {
-    // Jika integer, char, string biasa -> gunakan printf standar
-    va_list args;
-    va_start(args, format);
-    vprintf(format, args);
-    va_end(args);
+    vfprintf(stdout, format, args);
   }
+  
+  va_end(args);
 }
 
 // Clear Serial Input Buffer
@@ -87,10 +85,7 @@ static inline void clear_serial_buffer() {
 }
 
 // TRIK MACRO BERSIH:
-// 1. Menimpa Serial.begin agar memanggil helper inisialisasi stream secara transparan
 #define begin(baud) _init_serial_begin(baud)
-
-// 2. Menimpa kata 'printf' agar mendukung float/double secara transparan
 #define printf(...) _smart_printf_handler(__VA_ARGS__)
 
 #endif
