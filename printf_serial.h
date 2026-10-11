@@ -20,61 +20,44 @@ static int _serial_getchar(FILE *stream) {
   return Serial.read();
 }
 
-// Inisialisasi Serial + Stdout + Stdin
-static inline void init_serial_io(unsigned long baud_rate) {
+// Inisialisasi Serial + Setup Stream Stdout & Stdin
+static inline void init_serial_io(unsigned long baud_rate = 9600) {
   Serial.begin(baud_rate);
-  
-  // Setup stream untuk Baca & Tulis (_FDEV_SETUP_RW)
   fdev_setup_stream(&uart_str, _serial_putchar, _serial_getchar, _FDEV_SETUP_RW);
-  
   stdout = &uart_str; // Arahkan printf
   stdin  = &uart_str; // Arahkan scanf
 }
 
-// Helper internal untuk konversi float/double saat mencetak
-static inline void _smart_printf_handler(const char *format, ...) {
-  // Jika dalam format string ada %f atau %. (float/double)
-  if (strstr(format, "%f") || strstr(format, "%.")) {
-    va_list args;
-    va_start(args, format);
-    double val = va_arg(args, double);
-    va_end(args);
+// Helper konversi float/double ke string
+static inline void _print_flt_helper(const char *format, double val) {
+  char buf[20];
+  int precision = 2; // Default 2 angka di belakang koma
 
-    char buf[20];
-    int precision = 2; // Default 2 angka belakang koma
-
-    // Cari presisi kustom (misal %.1f, %.2f, %.4f)
-    const char *p = strchr(format, '.');
-    if (p && *(p + 1) >= '0' && *(p + 1) <= '9') {
-      precision = *(p + 1) - '0';
-    }
-
-    dtostrf(val, 0, precision, buf);
-
-    // Ubah specifier %f atau %.Xf menjadi %s
-    char fmt_clean[60];
-    int i = 0, j = 0;
-    while (format[i] != '\0' && j < 58) {
-      if (format[i] == '%' && (format[i+1] == 'f' || (format[i+1] == '.' && format[i+3] == 'f'))) {
-        fmt_clean[j++] = '%';
-        fmt_clean[j++] = 's';
-        if (format[i+1] == '.') i += 3;
-        else i += 1;
-      } else {
-        fmt_clean[j++] = format[i];
-      }
-      i++;
-    }
-    fmt_clean[j] = '\0';
-
-    printf(fmt_clean, buf);
-  } else {
-    // Jika integer, char, string biasa -> gunakan printf standar
-    va_list args;
-    va_start(args, format);
-    vprintf(format, args);
-    va_end(args);
+  // Cari presisi kustom (misal %.1f, %.2f, %.4f)
+  const char *p = strchr(format, '.');
+  if (p && *(p + 1) >= '0' && *(p + 1) <= '9') {
+    precision = *(p + 1) - '0';
   }
+
+  dtostrf(val, 0, precision, buf);
+
+  // Buat format string baru menggantikan %.Xf dengan %s
+  char fmt_clean[60];
+  int i = 0, j = 0;
+  while (format[i] != '\0' && j < 58) {
+    if (format[i] == '%' && (format[i+1] == 'f' || (format[i+1] == '.' && format[i+3] == 'f'))) {
+      fmt_clean[j++] = '%';
+      fmt_clean[j++] = 's';
+      if (format[i+1] == '.') i += 3;
+      else i += 1;
+    } else {
+      fmt_clean[j++] = format[i];
+    }
+    i++;
+  }
+  fmt_clean[j] = '\0';
+
+  printf(fmt_clean, buf);
 }
 
 // Clear Serial Input Buffer
@@ -84,7 +67,13 @@ static inline void clear_serial_buffer() {
   }
 }
 
-// Trik Macro: Menimpa kata 'printf' agar mendukung float secara otomatis
-#define printf(...) _smart_printf_handler(__VA_ARGS__)
+// MACRO SMART PRINTF:
+// Jika terdapat format %f / %.f maka otomatis dikonversi via helper, jika tidak pakai printf biasa
+#define printf(fmt, ...) \
+  if (strstr(fmt, "%f") || strstr(fmt, "%.")) { \
+    _print_flt_helper(fmt, ##__VA_ARGS__); \
+  } else { \
+    printf(fmt, ##__VA_ARGS__); \
+  }
 
 #endif
